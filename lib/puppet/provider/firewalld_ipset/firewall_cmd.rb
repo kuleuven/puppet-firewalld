@@ -1,4 +1,5 @@
 require 'puppet'
+require 'tempfile'
 require File.join(File.dirname(__FILE__), '..', 'firewalld.rb')
 
 Puppet::Type.type(:firewalld_ipset).provide(
@@ -39,7 +40,7 @@ Puppet::Type.type(:firewalld_ipset).provide(
   end
 
   def exists?
-    execute_firewall_cmd(['--get-ipsets'], nil).split(" ").include?(@resource[:name])
+    @property_hash[:ensure] == :present
   end
 
   def create
@@ -60,7 +61,7 @@ Puppet::Type.type(:firewalld_ipset).provide(
     end
     execute_firewall_cmd(args.flatten, nil)
     if @resource[:manage_entries]
-      @resource[:entries].each { |e| add_entry(e) }
+      add_entries_from_file(@resource[:entries])
     end
   end
 
@@ -81,6 +82,20 @@ Puppet::Type.type(:firewalld_ipset).provide(
     end
   end
 
+  def add_entries_from_file(entries)
+    f = Tempfile.new('ipset')
+    entries.each { |e| f.write(e+"\n") }
+    f.close
+    execute_firewall_cmd(["--ipset=#{@resource[:name]}", "--add-entries-from-file=#{f.path}"], nil)
+  end
+
+  def remove_entries_from_file(entry)
+    f = Tempfile.new('ipset')
+    entries.each { |e| f.write(e+"\n") }
+    f.close
+    execute_firewall_cmd(["--ipset=#{@resource[:name]}", "--remove-entries-from-file=#{f.path}"], nil)
+  end
+
   def add_entry(entry)
     execute_firewall_cmd(["--ipset=#{@resource[:name]}", "--add-entry=#{entry}"], nil)
   end
@@ -97,8 +112,8 @@ Puppet::Type.type(:firewalld_ipset).provide(
     cur_entries = entries
     delete_entries = cur_entries-should_entries
     add_entries = should_entries-cur_entries
-    delete_entries.each { |e| remove_entry(e) }
-    add_entries.each { |e| add_entry(e) }
+    remove_from_file(delete_entries)
+    add_entries_from_file(add_entries)
   end
 
   def destroy
