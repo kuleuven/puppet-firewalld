@@ -15,7 +15,10 @@ Puppet::Type.newtype(:firewalld_ipset) do
         }
   }
   
-  ensurable
+  ensurable do
+    defaultvalues
+    defaultto :present
+  end
   
   newparam(:name, :namevar => true) do
     desc "Name of the IPset"
