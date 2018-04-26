@@ -25,6 +25,14 @@ describe provider_class do
   options: maxelem=400 family=inet hashsize=2048
   entries:')
     provider.class.stubs(:execute_firewall_cmd).with(['--ipset=white', '--get-entries'], nil).returns('')
+    tempfile = stub('tempfile', :class => Tempfile,
+                :write => true,
+                :flush => true,
+                :close! => true,
+                :close => true,
+                :path => '/tmp/ipset-rspec'
+               )
+    Tempfile.stubs(:new).returns(tempfile)
   end
 
   describe 'self.instances' do
@@ -53,8 +61,7 @@ describe provider_class do
         resource.expects(:[]).with(:manage_entries).returns(true)
         resource.expects(:[]).with(:entries).returns(['192.168.0/24', '10.0.0/8'])
         provider.expects(:execute_firewall_cmd).with(['--new-ipset=white', '--type=hash:net', '--option=family=inet', '--option=hashsize=1024', '--option=maxelem=65536'], nil)
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=192.168.0/24'], nil)
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=10.0.0/8'], nil)
+        provider.expects(:execute_firewall_cmd).with(["--ipset=white", "--add-entries-from-file=/tmp/ipset-rspec"], nil)
         provider.create
       end
     end
@@ -75,9 +82,8 @@ describe provider_class do
         resource.expects(:[]).with(:entries).returns(['192.168.0/24', '10.0.0/8']).at_least_once
         provider.expects(:execute_firewall_cmd).with(['--new-ipset=white', '--type=hash:net', '--option=family=inet'], nil)
         provider.expects(:execute_firewall_cmd).with(['--new-ipset=white', '--type=hash:net', '--option=family=inet', '--option=hashsize=2048'], nil)
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=192.168.0/24'], nil).at_least_once
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=10.0.0/8'], nil).at_least_once
         provider.expects(:execute_firewall_cmd).with(['--delete-ipset=white'], nil)
+        provider.expects(:execute_firewall_cmd).with(["--ipset=white", "--add-entries-from-file=/tmp/ipset-rspec"], nil).at_least_once
         provider.create
         provider.hashsize = 2048
       end
@@ -93,12 +99,11 @@ describe provider_class do
         resource.expects(:[]).with(:options).returns({}).at_least_once
         resource.expects(:[]).with(:manage_entries).returns(true).at_least_once
         resource.expects(:[]).with(:entries).returns(['192.168.0.0/24', '10.0.0.0/8']).at_least_once
-        provider.expects(:entries).returns(['192.168.0.0/24', '10.0.0.0/8'])
+        provider.expects(:entries).returns(['192.168.0.0/24', '10.0.0.0/8']).at_least_once
         provider.expects(:execute_firewall_cmd).with(['--new-ipset=white', '--type=hash:net', '--option=family=inet'], nil)
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=192.168.0.0/24'], nil).at_least_once
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=10.0.0.0/8'], nil).at_least_once
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--add-entry=192.168.14.0/24'], nil)
-        provider.expects(:execute_firewall_cmd).with(['--ipset=white', '--remove-entry=192.168.0.0/24'], nil)
+        provider.expects(:execute_firewall_cmd).with(["--ipset=white", "--add-entries-from-file=/tmp/ipset-rspec"], nil).at_least_once
+        provider.expects(:execute_firewall_cmd).with(["--ipset=white", "--remove-entries-from-file=/tmp/ipset-rspec"], nil).at_least_once
+
         provider.create
         provider.entries = ['192.168.14.0/24', '10.0.0.0/8']
       end
