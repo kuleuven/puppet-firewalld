@@ -88,7 +88,7 @@ Puppet::Type.type(:firewalld_ipset).provide(
     execute_firewall_cmd(["--ipset=#{@resource[:name]}", "--add-entries-from-file=#{f.path}"], nil)
   end
 
-  def remove_entries_from_file(entry)
+  def remove_entries_from_file(entries)
     f = Tempfile.new('ipset')
     entries.each { |e| f.write(e+"\n") }
     f.close
